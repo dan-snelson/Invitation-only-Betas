@@ -32,11 +32,11 @@
 scriptVersion="1.3"
 scriptResult="Version ${scriptVersion};"
 apiURL=$( /usr/bin/defaults read "/Library/Preferences/com.jamfsoftware.jamf.plist" jss_url )
-apiUsername="${4}"										# API Username
-apiPasswordEncrypted="${5}"								# API Encrypted Password
-eaName="${6}"											# Name of Extension Attribute (i.e., "Testing Level")
-eaValue="${7}"											# Value for Extension Attribute (i.e., "Gamma" or "None")
-Salt="Salt_value_goes_here"								# Salt (generated from Encrypt Password)
+apiUsername="${4}"							# API Username
+apiPasswordEncrypted="${5}"						# API Encrypted Password
+eaName="${6}"								# Name of Extension Attribute (i.e., "Testing Level")
+eaValue="${7}"								# Value for Extension Attribute (i.e., "Gamma" or "None")
+Salt="Salt_value_goes_here"						# Salt (generated from Encrypt Password)
 Passphrase="Passphrase_value_goes_here"					# Passphrase (generated from Encrypt Password)
 computerUDID=$(/usr/sbin/system_profiler SPHardwareDataType | /usr/bin/awk '/Hardware UUID:/ { print $3 }')
 
