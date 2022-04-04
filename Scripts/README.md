@@ -20,6 +20,8 @@
 	- Parameter 5: `Value (i.e., The value to which "key" will be set)`
 1. Click **Save**
 
+(Use [Extension Attributes](https://github.com/dan-snelson/Invitation-only-Betas/tree/main/ExtensionAttributes) to read the results.)
+
 ---
 
 ### Extension Attribute Update (Encrypted Script Parameters)
