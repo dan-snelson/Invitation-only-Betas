@@ -13,4 +13,6 @@
 1. Modify `filepath` to match the **Reverse Domain Name Notation** for your organization (i.e., `org.churchofjesuschrist`)
 1. Click **Save**
 
+![Microsoft-Defender-Pilot-Plist.xml](https://raw.githubusercontent.com/dan-snelson/Invitation-only-Betas/main/images/Microsoft-Defender-Pilot-Plist.png)
+
 (Use [Property List Writer](https://github.com/dan-snelson/Invitation-only-Betas/tree/main/Scripts#property-list-writer) to write the desired values.)
