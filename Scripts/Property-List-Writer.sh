@@ -29,8 +29,8 @@
 scriptVersion="0.0.1"
 scriptResult="Version ${scriptVersion};"
 filepath="/Library/Preferences/org.churchofjesuschrist.plist"	# Reverse Domain Name Notation (i.e., "org.churchofjesuschrist")
-key="${4}"														# Name of the "key" for which the value will be set
-value="${5}"													# The value to which "key" will be set
+key="${4}"							# Name of the "key" for which the value will be set
+value="${5}"							# The value to which "key" will be set
 
 
 
