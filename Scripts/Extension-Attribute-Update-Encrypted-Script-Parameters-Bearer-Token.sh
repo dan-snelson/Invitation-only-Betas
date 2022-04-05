@@ -118,7 +118,7 @@ validateJamfProAPIBearerToken() {
 	if [ "${apiBearerTokenCheck}" != 200 ]; then
 
 		scriptResult="${scriptResult} Error: ${apiBearerTokenCheck}; exiting."
-		jssLog "${scriptResult}"
+		echo "${scriptResult}"
 		exit 1
 
 	fi
