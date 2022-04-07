@@ -33,8 +33,8 @@
 #### Configuration
 
 1. Download one of the following:
-	- [Extension-Attribute-Update-Encrypted-Script-Parameters.sh](Extension-Attribute-Update-Encrypted-Script-Parameters.sh)
 	- [Extension-Attribute-Update-Encrypted-Script-Parameters-Bearer-Token.sh](Extension-Attribute-Update-Encrypted-Script-Parameters-Bearer-Token.sh)
+	- [Extension-Attribute-Update-Encrypted-Script-Parameters.sh](Extension-Attribute-Update-Encrypted-Script-Parameters.sh)
 1. [Add](https://docs.jamf.com/10.37.0/jamf-pro/documentation/Scripts.html?hl=scripts#ID-000234ed) the downloaded Script to Jamf Pro
 1. Modify `Salt` and `Passphrase` per [Encrypted Strings](https://github.com/brysontyrrell/EncryptedStrings)
 1. Click the **Options** tab and configure the Parameter Labels as follows:
