@@ -8,6 +8,12 @@
 #
 ####################################################################################################
 #
+# WARNING
+#
+#	Requires global-scope API credentials on clients; provides obfuscation at-best.
+#
+####################################################################################################
+#
 # HISTORY
 #
 #	Version 1.0, 30-Jul-2016, Dan K. Snelson (@dan-snelson)

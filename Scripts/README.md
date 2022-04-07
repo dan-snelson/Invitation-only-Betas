@@ -27,6 +27,8 @@
 ### Extension Attribute Update (Encrypted Script Parameters)
 
 > Set a computer's Extension Attribute via the Jamf Pro API.
+> 
+> :warning:  **Warning:** Requires global-scope API credentials on clients; provides obfuscation at-best.
 
 #### Configuration
 
