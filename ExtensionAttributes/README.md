@@ -3,16 +3,16 @@
 
 - [Jamf-Protect-Pilot-Plist.xml](Jamf-Protect-Pilot-Plist.xml)
 - [Microsoft-Defender-Pilot-Plist.xml](Microsoft-Defender-Pilot-Plist.xml)
+- [Microsoft-Defender-Healthy.xml](Microsoft-Defender-Healthy.xml)
 
 ---
 
-### Configuration
+## Help
 
-1. Download the desired Extension Attribute [from the list above](#extension-attributes) 
-1. [Upload](https://docs.jamf.com/10.29.0/jamf-pro/administrator-guide/Computer_Extension_Attributes.html#src-81928610_id-.ComputerExtensionAttributesv10.27.0-UploadingaTemplateforaComputerExtensionAttribute) the downloaded Computer Extension Attribute
-1. Modify `filepath` to match the **Reverse Domain Name Notation** for your organization (i.e., `org.churchofjesuschrist`)
-1. Click **Save**
+Please see the [3. Configuration: Extension Attributes](https://github.com/dan-snelson/Invitation-only-Betas/wiki/3.-Configuration:-Extension-Attributes) in the Wiki.
 
-![Microsoft-Defender-Pilot-Plist.xml](https://raw.githubusercontent.com/dan-snelson/Invitation-only-Betas/main/images/Microsoft-Defender-Pilot-Plist.png)
+---
 
-(Use [Property List Writer](https://github.com/dan-snelson/Invitation-only-Betas/tree/main/Scripts#property-list-writer) to write the desired values.)
+## Support
+
+All support for this workflow should be asked by [opening an issue](https://github.com/dan-snelson/Invitation-only-Betas/issues).
