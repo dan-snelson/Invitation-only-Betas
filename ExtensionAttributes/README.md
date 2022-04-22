@@ -9,7 +9,7 @@
 
 ## Help
 
-Please see the [3. Configuration: Extension Attributes](https://github.com/dan-snelson/Invitation-only-Betas/wiki/3.-Configuration:-Extension-Attributes) in the Wiki.
+Please see [3. Configuration: Extension Attributes](https://github.com/dan-snelson/Invitation-only-Betas/wiki/3.-Configuration:-Extension-Attributes) in the Wiki.
 
 ---
 
