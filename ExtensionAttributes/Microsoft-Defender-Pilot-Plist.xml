@@ -10,7 +10,7 @@ key="Microsoft Defender Pilot"&#13;
 # If the key is not found, "Does not exist" will be returned. #&#13;
 ###############################################################&#13;
 &#13;
-filepath="/Library/Preferences/org.churchofjesuschrist.ics.cts.csp.plist"&#13;
+filepath="/Library/Preferences/org.churchofjesuschrist.plist"&#13;
 key="Microsoft Defender Pilot"		# Name of the "key" for which the value will be read&#13;
 value=$( /usr/bin/defaults read "${filepath}" "${key}" 2&gt;&amp;1 )&#13;
 &#13;
