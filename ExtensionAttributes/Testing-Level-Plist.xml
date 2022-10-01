@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><extensionAttribute>
+<displayName>Testing Level Plist</displayName>
+<description>A script to determine the value of Property List key. If the key is not found, "Does not exist" will be returned.&#13;
+key="Testing Level"&#13;
+</description>
+<dataType>string</dataType>
+<scriptContentsMac>#!/bin/sh&#13;
+###############################################################&#13;
+# A script to determine the value of Property List key.       #&#13;
+# If the key is not found, "Does not exist" will be returned. #&#13;
+###############################################################&#13;
+&#13;
+filepath="/Library/Preferences/org.churchofjesuschrist.plist"&#13;
+key="Testing Level"		# Name of the "key" for which the value will be read&#13;
+&#13;
+value=$( /usr/bin/defaults read "${filepath}" "${key}" 2&gt;&amp;1 )&#13;
+&#13;
+case "${value}" in&#13;
+	*"does not exist"	)	RESULT="None" ;;&#13;
+	*					)	RESULT="${value}" ;;&#13;
+esac&#13;
+&#13;
+/bin/echo "&lt;result&gt;${RESULT}&lt;/result&gt;"&#13;
+&#13;
+exit 0</scriptContentsMac>
+</extensionAttribute>
