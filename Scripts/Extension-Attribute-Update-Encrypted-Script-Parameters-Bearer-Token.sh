@@ -1,31 +1,18 @@
-﻿#!/bin/sh
+﻿#!/bin/zsh --no-rcs
+# shellcheck shell=bash
+
 ####################################################################################################
 #
 # ABOUT
 #
-#	Set a computer's Extension Attribute via the Jamf Pro API
-#	https://github.com/dan-snelson/Invitation-only-Betas/wiki
-#
-####################################################################################################
-#
-# WARNING
-#
-#	Requires global-scope API credentials on clients; provides obfuscation at-best.
+#    Set a computer's Extension Attribute via the Jamf Pro API
 #
 ####################################################################################################
 #
 # HISTORY
 #
-#	Version 1.0, 30-Jul-2016, Dan K. Snelson (@dan-snelson)
-#		Original
-#	Version 1.1, 17-Oct-2016, Dan K. Snelson (@dan-snelson)
-#		Updated to leverage an encyrpted API password
-#	Version 1.2, 02-Feb-2022, Dan K. Snelson (@dan-snelson)
-#		Updated for openssl 3.3.5 / macOS 12.3
-#	Version 1.3, 02-Apr-2022, Dan K. Snelson (@dan-snelson)
-#		Standardization updates
-#	Version 1.4, 04-Apr-2022, Dan K. Snelson (@dan-snelson)
-#		Updated to leverage Bearer Token
+#    Version 2.0.0, 17-May-2024, Dan K. Snelson (@dan-snelson)
+#        Updated to leverage Bearer Token with Jamf Pro 11.5.0
 #
 ####################################################################################################
 
@@ -37,18 +24,69 @@
 #
 ####################################################################################################
 
-scriptVersion="1.4"
-scriptResult="Version ${scriptVersion};"
-apiBearerToken=""
-apiURL=$( /usr/bin/defaults read "/Library/Preferences/com.jamfsoftware.jamf.plist" jss_url )
-apiUsername="${4}"					# API Username
-apiPasswordEncrypted="${5}"				# API Encrypted Password
-eaName="${6}"						# Name of Extension Attribute (i.e., "Testing Level")
-eaValue="${7}"						# Value for Extension Attribute (i.e., "Gamma" or "None")
-Salt="Salt_value_goes_here"				# Salt (generated from Encrypt Password)
-Passphrase="Passphrase_value_goes_here"			# Passphrase (generated from Encrypt Password)
-computerUDID=$(/usr/sbin/system_profiler SPHardwareDataType | /usr/bin/awk '/Hardware UUID:/ { print $3 }')
-osProductVersion=$( /usr/bin/sw_vers -productVersion | /usr/bin/awk -F . '{print $1}' )
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Global
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# Script Version
+scriptVersion="2.0.0"
+
+# Client-side Log
+scriptLog="/var/log/org.churchofjesuschrist.log"
+
+# Jamf Pro API URL
+apiURL=$( defaults read /Library/Preferences/com.jamfsoftware.jamf.plist jss_url )
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Jamf Pro Script Parameters
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# Parameter 4: Jamf Pro API Username
+apiUser="${4:-"Jamf Pro API Username"}"
+
+# Parameter 5: Jamf Pro API Encrypted Password (generated from Encrypt Password)
+apiPasswordEncrypted="${5:-"Jamf Pro API Encrypted Password"}"
+
+# Parameter 6: Extension Attribute Name
+eaName="${6:-"Testing Level"}"
+
+# Parameter 7: Extension Attribute Value
+eaValue="${7:-"None"}"
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Organization Variables
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+# Script Human-readable Name
+humanReadableScriptName="Extension Attribute Update"
+
+# Abbreviated Script Name
+organizationScriptName="EA Update"
+
+# Salt (generated from Encrypt Password)
+Salt="salt_goes_here"
+
+# Passphrase (generated from Encrypt Password)
+Passphrase="passphrase_goes_here"
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Operating System Variables
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+osVersion=$( sw_vers -productVersion )
+osVersionExtra=$( sw_vers -productVersionExtra ) 
+osBuild=$( sw_vers -buildVersion )
+osMajorVersion=$( echo "${osVersion}" | awk -F '.' '{print $1}' )
+if [[ -n $osVersionExtra ]] && [[ "${osMajorVersion}" -ge 13 ]]; then osVersion="${osVersion} ${osVersionExtra}"; fi
+serialNumber=$( ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}' )
 
 
 
@@ -59,52 +97,83 @@ osProductVersion=$( /usr/bin/sw_vers -productVersion | /usr/bin/awk -F . '{print
 ####################################################################################################
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Client-side Logging
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function updateScriptLog() {
+    echo "${organizationScriptName} ${scriptVersion}: $( date +%Y-%m-%d\ %H:%M:%S ) - ${1}" | tee -a "${scriptLog}"
+}
+
+function preFlight() {
+    updateScriptLog "[PRE-FLIGHT]      ${1}"
+}
+
+function logComment() {
+    updateScriptLog "                  ${1}"
+}
+
+function notice() {
+    updateScriptLog "[NOTICE]          ${1}"
+}
+
+function info() {
+    updateScriptLog "[INFO]            ${1}"
+}
+
+function debug() {
+    if [[ "$operationMode" == "debug" ]]; then
+        updateScriptLog "[DEBUG]           ${1}"
+    fi
+}
+
+function errorOut(){
+    updateScriptLog "[ERROR]           ${1}"
+}
+
+function error() {
+    updateScriptLog "[ERROR]           ${1}"
+    let errorCount++
+}
+
+function warning() {
+    updateScriptLog "[WARNING]         ${1}"
+    let errorCount++
+}
+
+function fatal() {
+    updateScriptLog "[FATAL ERROR]     ${1}"
+    exit 1
+}
+
+function quitOut(){
+    updateScriptLog "[QUIT]            ${1}"
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Decrypt Password
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-decryptPassword() {
-	/bin/echo "${1}" | /usr/bin/openssl enc -aes256 -md sha256 -d -a -A -S "${2}" -k "${3}"
-}
-
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Read API Value
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-readApiValue() {
-	apiRead=$( curl -H "Accept: text/xml" -sfu "${apiUsername}":"${apiPassword}" "${apiURL}"/JSSResource/computers/udid/"${computerUDID}"/subset/extension_attributes | xmllint --format - | grep -A3 "<name>${eaName}</name>" | awk -F'>|<' '/value/{print $3}' | tail -n 1 )
-}
-
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Parse JSON string ($1) and return the desired key ($2)
-# https://paulgalow.com/how-to-work-with-json-api-data-in-macos-shell-scripts
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-getJsonValue() {
-	JSON="$1" /usr/bin/osascript -l 'JavaScript' \
-		-e 'const env = $.NSProcessInfo.processInfo.environment.objectForKey("JSON").js' \
-		-e "JSON.parse(env).$2"
+function decryptPassword() {
+    echo "${1}" | openssl enc -aes256 -md sha256 -d -a -A -S "${2}" -k "${3}"
 }
 
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Obtain Jamf Pro Bearer Token via Basic Authentication
-# https://derflounder.wordpress.com/2022/01/05/
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-obtainJamfProAPIBearerToken() {
+function obtainJamfProAPIBearerToken() {
 
-	if [ "${osProductVersion}" -lt 12 ]; then
-		apiBearerToken=$( /usr/bin/curl -X POST --silent -u "${apiUsername}:${apiPassword}" "${apiURL}/api/v1/auth/token" | /usr/bin/python -c 'import sys, json; print json.load(sys.stdin)["token"]' )
-	else
-		apiBearerToken=$( /usr/bin/curl -X POST --silent -u "${apiUsername}:${apiPassword}" "${apiURL}/api/v1/auth/token" | /usr/bin/plutil -extract token raw - )
-	fi
+    if [[ "${osVersion}" -lt 12 ]]; then
+        apiBearerToken=$( curl -X POST --silent -u "${apiUsername}:${apiPassword}" "${apiURL}/api/v1/auth/token" | python -c 'import sys, json; print json.load(sys.stdin)["token"]' )
+    else
+        apiBearerToken=$( curl -X POST -s -u "${apiUser}:${apiPassword}" "${apiURL}/api/v1/auth/token" | plutil -extract token raw - )
+    fi
 
-	# scriptResult="${scriptResult} apiBearerToken: ${apiBearerToken}; "
+	# logComment "apiBearerToken: ${apiBearerToken}"
 
 }
 
@@ -112,22 +181,17 @@ obtainJamfProAPIBearerToken() {
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Verify API authentication is using a valid Bearer Token; returns the HTTP status code
-# https://derflounder.wordpress.com/2022/01/05/
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-validateJamfProAPIBearerToken() {
+function validateJamfProAPIBearerToken() {
 
-	apiBearerTokenCheck=$( /usr/bin/curl --write-out %{http_code} --silent --output /dev/null "${apiURL}/api/v1/auth" --request GET --header "Authorization: Bearer ${apiBearerToken}")
+    apiBearerTokenCheck=$( curl --write-out %{http_code} --silent --output /dev/null "${apiURL}/api/v1/auth" --request GET --header "Authorization: Bearer ${apiBearerToken}")
 
-	scriptResult="${scriptResult} apiBearerTokenCheck: ${apiBearerTokenCheck}; "
+    logComment "apiBearerTokenCheck: ${apiBearerTokenCheck}"
 
-	if [ "${apiBearerTokenCheck}" != 200 ]; then
-
-		scriptResult="${scriptResult} Error: ${apiBearerTokenCheck}; exiting."
-		echo "${scriptResult}"
-		exit 1
-
-	fi
+    if [[ "${apiBearerTokenCheck}" != 200 ]]; then
+        fatal "Error: ${apiBearerTokenCheck}; exiting."
+    fi
 
 }
 
@@ -135,31 +199,30 @@ validateJamfProAPIBearerToken() {
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Validate and optionally renew the Bearer Token; returns the HTTP status code
-# https://derflounder.wordpress.com/2022/01/05/
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-validateRenewBearerToken() {
+function validateRenewBearerToken() {
 
-	validateJamfProAPIBearerToken
-	
-	if [ "${apiBearerTokenCheck}" = "200" ]; then
+    validateJamfProAPIBearerToken
+    
+    if [[ "${apiBearerTokenCheck}" = "200" ]]; then
 
-		if [ "${osProductVersion}" -lt 12 ]; then
-			apiBearerToken=$(/usr/bin/curl "${apiURL}/api/v1/auth/keep-alive" --silent --request POST --header "Authorization: Bearer ${apiBearerToken}" | python -c 'import sys, json; print json.load(sys.stdin)["token"]')
-		else
-			apiBearerToken=$(/usr/bin/curl "${apiURL}/api/v1/auth/keep-alive" --silent --request POST --header "Authorization: Bearer ${apiBearerToken}" | plutil -extract token raw -)
-		fi
+        if [[ "${osProductVersion}" -lt 12 ]]; then
+            apiBearerToken=$( curl "${apiURL}/api/v1/auth/keep-alive" --silent --request POST --header "Authorization: Bearer ${apiBearerToken}" | python -c 'import sys, json; print json.load(sys.stdin)["token"]')
+        else
+            apiBearerToken=$( curl "${apiURL}/api/v1/auth/keep-alive" --silent --request POST --header "Authorization: Bearer ${apiBearerToken}" | plutil -extract token raw -)
+        fi
 
-		scriptResult="${scriptResult} Renewed Bearer Token: ${apiBearerToken}; "
+        logComment "Renewed Bearer Token: ${apiBearerToken}"
 
 
-	else
+    else
 
-		scriptResult="${scriptResult} Expired Bearer Token; renewing …"
+        logComment "Expired Bearer Token; renewing …"
 
-		obtainJamfProAPIBearerToken
+        obtainJamfProAPIBearerToken
 
-	fi
+    fi
 
 }
 
@@ -167,29 +230,109 @@ validateRenewBearerToken() {
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Invalidate the Bearer Token
-# https://derflounder.wordpress.com/2022/01/05/
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-invalidateJamfProAPIBearerToken() {
-	
-	validateJamfProAPIBearerToken
+function invalidateJamfProAPIBearerToken() {
+    
+    validateJamfProAPIBearerToken
 
-	if [ "${apiBearerTokenCheck}" == 200 ]; then
+    if [[ "${apiBearerTokenCheck}" == 200 ]]; then
 
-		scriptResult="${scriptResult} Bearer Token still valid; invalidate; "
+        logComment "Bearer Token still valid; invalidate …"
 
-		apiBearerToken=$( /usr/bin/curl "${apiURL}/api/v1/auth/invalidate-token" --silent  --header "Authorization: Bearer ${apiBearerToken}" -X POST )
-		apiBearerToken=""
+        apiBearerToken=$( curl "${apiURL}/api/v1/auth/invalidate-token" --silent  --header "Authorization: Bearer ${apiBearerToken}" -X POST )
+        apiBearerToken=""
 
-		scriptResult="${scriptResult} Bearer Token invalidated; "
+        logComment "Bearer Token invalidated"
 
-	else
+    else
 
-		scriptResult="${scriptResult} Bearer Token already expired; "
+        logComment "Bearer Token already expired"
 
-	fi
+    fi
 
 }
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Extension Attribute Read
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function extensionAttributeRead() {
+
+    notice "Read Extension Attribute …"
+    apiRead=$( curl -H "Authorization: Bearer ${apiBearerToken}" -H "Accept: text/xml" -s "${apiURL}"/JSSResource/computers/id/"${jssID}"/subset/extension_attributes | xmllint --format - | grep -A3 "<name>${eaName}</name>" | awk -F'>|<' '/value/{print $3}' | tail -n 1 )
+    # logComment "${eaName}: ${eaValue}"
+
+}
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Extension Attribute Write
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+function extensionAttributeWrite() {
+
+    notice "Write Extension Attribute '${eaName}' to '${eaValue}' …"
+    apiData="<computer><extension_attributes><extension_attribute><name>${eaName}</name><value>${eaValue}</value></extension_attribute></extension_attributes></computer>"
+    apiPost=$( curl -H "Authorization: Bearer ${apiBearerToken}" -H "Content-Type: text/xml" -s "${apiURL}"/JSSResource/computers/id/"${jssID}" -d "${apiData}" -X PUT )
+    /bin/echo "${apiPost}" > /dev/null
+
+}
+
+
+
+####################################################################################################
+#
+# Pre-flight Checks
+#
+####################################################################################################
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Client-side Logging
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ ! -f "${scriptLog}" ]]; then
+    touch "${scriptLog}"
+    if [[ -f "${scriptLog}" ]]; then
+        preFlight "Created specified scriptLog"
+    else
+        fatal "Unable to create specified scriptLog '${scriptLog}'; exiting.\n\n(Is this script running as 'root' ?)"
+    fi
+else
+    preFlight "Specified scriptLog exists; writing log entries to it"
+fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Logging Preamble
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+preFlight "\n\n###\n# ${humanReadableScriptName} [${organizationScriptName} (${scriptVersion})]\n# Setting '${eaName}' to '${eaValue}'\n###\n"
+preFlight "Initiating …"
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Confirm script is running as root
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ $(id -u) -ne 0 ]]; then
+    fatal "This script must be run as root; exiting."
+else
+	logComment "Running as root; proceeding …"
+fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Pre-flight Check: Complete
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+preFlight "Complete!"
 
 
 
@@ -199,93 +342,85 @@ invalidateJamfProAPIBearerToken() {
 #
 ####################################################################################################
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Obtain Bearer Token
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+notice "Obtain Bearer Token …"
+
+apiPassword=$( decryptPassword "${apiPasswordEncrypted}" "${Salt}" "${Passphrase}" )
+
+obtainJamfProAPIBearerToken
+
+validateJamfProAPIBearerToken
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Validate values have been specified for Script Parameters
+# Obtain the Computer’s Jamf Pro Computer ID via the API
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-if	[ -n "${apiUsername}" ] && \
-	[ -n "${apiPasswordEncrypted}" ] && \
-	[ -n "${eaName}" ] && \
-	[ -n "${eaValue}" ]; then
-	# scriptResult="${scriptResult} All script parameters have been specified, proceeding;"
+jssID=$( curl -H "Authorization: Bearer ${apiBearerToken}" -s "${apiURL}"/JSSResource/computers/serialnumber/"${serialNumber}"/subset/general | xpath -e "/computer/general/id/text()" )
 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Decrypt API password
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+logComment "jssID: ${jssID}"
 
-	apiPassword=$( decryptPassword "${apiPasswordEncrypted}" "${Salt}" "${Passphrase}" )
 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Obtain and validate Jamf Pro API Bearer Token
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-	obtainJamfProAPIBearerToken
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Read the Extension Attribute's Current Value
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-	validateJamfProAPIBearerToken
+extensionAttributeRead
+logComment "Extension Attribute ${eaName}'s Current Value: ${apiRead}"
 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Log Extension Attribute name and value 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-	# scriptResult="${scriptResult} Extension Attribute Name: ${eaName};"
-	# scriptResult="${scriptResult} Extension Attribute New Value: ${eaValue};"
-	
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Reset Extension Attribute value
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-	if [ "${eaValue}" = "None" ]; then
-		scriptResult="${scriptResult} Extension Attribute Value is \"None\", remove value from: ${eaName};"
-		eaValue=""
-	fi
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Reset Extension Attribute value
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Read current Extension Attribute Value
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	
-	readApiValue
-
-	# scriptResult="${scriptResult} Extension Attribute ${eaName}'s Current Value: ${apiRead};"
-
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Construct the API data
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-	apiData="<computer><extension_attributes><extension_attribute><name>${eaName}</name><value>${eaValue}</value></extension_attribute></extension_attributes></computer>"
-	
-	apiPost=$(curl -H "Content-Type: text/xml" -sfu "${apiUsername}":"${apiPassword}" "${apiURL}"/JSSResource/computers/udid/"${computerUDID}" -d "${apiData}" -X PUT) 
-
-	/bin/echo "${apiPost}" > /dev/null
-
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Read the new Extension Attribute Value
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	
-	readApiValue
-
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-	# Log Extension Attribute name and value 
-	# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-	if [ -z "${apiRead}" ]; then
-		apiRead="None"
-	fi
-	scriptResult="${scriptResult} ${eaName} changed to ${apiRead};"
-	
-else
-	
-	scriptResult="${scriptResult} Error: Parameters 4, 5, 6 and 7 not all populated; exiting."
-	echo "${scriptResult}"
-	exit 1
-
+if [[ "${eaValue}" = "None" ]]; then
+    logComment "Extension Attribute Value is \"None\", remove value from: ${eaName}"
+    eaValue=""
 fi
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Write the Extension Attribute's New Value
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+extensionAttributeWrite
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Read the Extension Attribute's New Value
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    
+extensionAttributeRead
+logComment "Extension Attribute ${eaName}'s New Value: ${apiRead}"
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Log Extension Attribute name and value 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+if [[ -z "${apiRead}" ]]; then
+    apiRead="None"
+fi
+logComment "${eaName} changed to ${apiRead}"
+
+
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Exit
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 invalidateJamfProAPIBearerToken
 
-scriptResult="${scriptResult} End-of-line."
-
-echo "${scriptResult}"
+logComment "End-of-line."
 
 exit 0
